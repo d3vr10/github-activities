@@ -30,30 +30,32 @@ time_unit_to_datetime_mapping = {
     "h": "hours",
 }
 
-def filter_events(events, from_=None, until=None):
+def filter_events(events, from_date=None, until_date=None):
     def get_delta(unit):
         if not unit:
             return relativedelta(0)
 
         unit_kind = unit[len(unit) - 1]
 
+        value = int(unit[:-1])
+
         if unit_kind == "d":
-            return relativedelta(days=unit[:-1])
+            return relativedelta(days=value)
         elif unit_kind == "w":
-            return relativedelta(weeks=unit[:-1])
+            return relativedelta(weeks=value)
         elif unit_kind == "h":
-            return relativedelta(hours=unit[:-1])
+            return relativedelta(hours=value)
         elif unit_kind == "mo":
-            return relativedelta(months=unit[:-1])
+            return relativedelta(months=value)
         elif unit_kind == "y":
-            return relativedelta(years=unit[:-1])
+            return relativedelta(years=value)
         elif unit_kind == "m":
-            return relativedelta(minutes=unit[:-1])
+            return relativedelta(minutes=value)
         else:
             raise Exception("Wrong time unit")
 
-    from_delta = get_delta(from_)
-    until_delta = get_delta(until)
+    from_delta = get_delta(from_date)
+    until_delta = get_delta(until_date)
 
     def filter_event(event):
         created_at = datetime.fromisoformat(event.created_at)  # Ensure it is UTC-aware
@@ -78,12 +80,36 @@ def build_parser():
     )
 
     parser.add_argument("username")
-    parser.add_argument("--from") 
-    parser.add_argument("--until")  
+    parser.add_argument("--from-date", action="store", default=None) 
+    parser.add_argument("--until-date", action="store", default=None)
     parser.add_argument("--timeout", default=10)
     parser.add_argument("-t", "--trial-count", default=1)
     parser.add_argument("-v", "--verbose", action="count") #TODO to be implemented
     return parser
+
+def collect_events(carrier, from_date=None, until_date=None):
+    body_json = json.loads(
+        carrier.read().decode('utf-8')
+    )
+    events = filter_events(
+        map(dict_to_simplenamespace, body_json),
+        from_date=from_date,
+        until_date=until_date,
+    )
+    for event in events:
+        event_type = event.type.lower().replace("event", "")
+        info = ""
+        if event_type == "push":
+            info = f'Pushed {event.payload.size} commit{"s" if event.payload.size > 1 else ""} to {event.repo.name} at {event.created_at}'
+        elif event_type == "watch":
+            info = f'Watched {event.repo.name} at {event.created_at}'    
+        elif event_type == "open":
+            info = f'Opened an issue at {event.created_at}'
+        elif event_type == "issuecomment":
+            info = f'Commented an issue in repo {event.repo.name} with title "{event.payload.issue.title}" to user "{event.payload.issue.user}" at {event.created_at}'
+        elif event_type == "create":
+            info = f'Created a {event.payload.ref_type} with ref "{event.payload.ref}" in repo "{event.repo.name}" at {event.created_at}'
+        if len(info) > 0: print(info)
 
 def main():
     parser = build_parser()
@@ -114,26 +140,7 @@ def main():
             raise err
 
     if res.status == HTTPStatus.OK:
-        body_json = json.loads(
-            res.read().decode('utf-8')
-        )
-        events = filter_events(
-            map(dict_to_simplenamespace, body_json)
-        )
-        for event in events:
-            event_type = event.type.lower().replace("event", "")
-            info = ""
-            if event_type == "push":
-                info = f'Pushed {event.payload.size} commit{"s" if event.payload.size > 1 else ""} to {event.repo.name} at {event.created_at}'
-            elif event_type == "watch":
-                info = f'Watched {event.repo.name} at {event.created_at}'    
-            elif event_type == "open":
-                info = f'Opened an issue at {event.created_at}'
-            elif event_type == "issuecomment":
-                info = f'Commented an issue in repo {event.repo.name} with title "{event.payload.issue.title}" to user "{event.payload.issue.user}" at {event.created_at}'
-            elif event_type == "create":
-                info = f'Created a {event.payload.ref_type} with ref "{event.payload.ref}" in repo "{event.repo.name}" at {event.created_at}'
-            if len(info) > 0: print(info)
+        collect_events(res, from_date=namespace.from_date, until_date=namespace.until_date)
     
 
 
