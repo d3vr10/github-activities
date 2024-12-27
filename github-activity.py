@@ -8,7 +8,9 @@ import argparse
 import json
 from types import SimpleNamespace
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+from dateutils import relativedelta
+import socket
 
 github_events_url = "https://api.github.com/users/{username}/events"
 
@@ -28,23 +30,43 @@ time_unit_to_datetime_mapping = {
     "h": "hours",
 }
 
-def filter_events(event, from_=None, until=None):
+def filter_events(events, from_=None, until=None):
     def get_delta(unit):
+        if not unit:
+            return relativedelta(0)
+
         unit_kind = unit[len(unit) - 1]
-    
+
         if unit_kind == "d":
-            return timedelta(days=unit[:-1])
+            return relativedelta(days=unit[:-1])
         elif unit_kind == "w":
-            return timedelta(weeks=unit[:-1])
+            return relativedelta(weeks=unit[:-1])
         elif unit_kind == "h":
-            return timedelta(hours=unit[:-1])
-        
-    
+            return relativedelta(hours=unit[:-1])
+        elif unit_kind == "mo":
+            return relativedelta(months=unit[:-1])
+        elif unit_kind == "y":
+            return relativedelta(years=unit[:-1])
+        elif unit_kind == "m":
+            return relativedelta(minutes=unit[:-1])
+        else:
+            raise Exception("Wrong time unit")
+
     from_delta = get_delta(from_)
     until_delta = get_delta(until)
 
+    def filter_event(event):
+        created_at = datetime.fromisoformat(event.created_at)  # Ensure it is UTC-aware
+        from_datetime = datetime.now(timezone.utc) - from_delta
+        until_datetime = None
+        if until_delta == relativedelta(0): until_datetime = datetime.min.replace(tzinfo=timezone.utc)  # Minimum representable datetime
+        else: until_datetime = from_datetime - until_delta
+        return created_at >= until_datetime and created_at <= from_datetime
         
+    return filter(filter_event, events)
+    
         
+
     # threshold = datetime.now(timezone.utc) - timedelta({
     #     time_unit_to_datetime_mapping["mode"]: unit,
     # })
@@ -53,12 +75,11 @@ def build_parser():
     parser = argparse.ArgumentParser(
         prog="Github Activity Visualizer - CLI",
         description="Tool to display a user's activity on Github per the Github's official API",
-        
     )
 
     parser.add_argument("username")
-    parser.add_argument("--from") #TODO to be implemented
-    parser.add_argument("--until") #TODO to be implemented
+    parser.add_argument("--from") 
+    parser.add_argument("--until")  
     parser.add_argument("--timeout", default=10)
     parser.add_argument("-t", "--trial-count", default=1)
     parser.add_argument("-v", "--verbose", action="count") #TODO to be implemented
@@ -79,18 +100,27 @@ def main():
         except urllib.error.HTTPError as err:
             pass
         except urllib.error.URLError as err:
-            if attempt + 1 == attempts:
+            if isinstance(err.reason, socket.timeout) and attempt + 1 == attempts:
                 logging.error(f"Request timeout. Max attempt count has been reached. {attempt + 1}/{attempts}")
-                sys.exit(20)
-            
+                sys.exit(21)
+            elif isinstance(err.reason, socket.gaierror):
+                logging.error("Network is unreachable or DNS lookup failed")
+                sys.exit(22)
+            else:
+                logging.error(f"Something bad happened while making the request! :(\n{err}")
+                sys.exit(299)
+        except Exception as err:
+            logging.error("Something unexpected happened!")
+            raise err
 
     if res.status == HTTPStatus.OK:
         body_json = json.loads(
             res.read().decode('utf-8')
         )
-        for event_dict in body_json:
-            event = dict_to_simplenamespace(event_dict)
-            
+        events = filter_events(
+            map(dict_to_simplenamespace, body_json)
+        )
+        for event in events:
             event_type = event.type.lower().replace("event", "")
             info = ""
             if event_type == "push":
