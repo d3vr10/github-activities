@@ -131,7 +131,9 @@ def main():
                 info = f'Opened an issue at {event.created_at}'
             elif event_type == "issuecomment":
                 info = f'Commented an issue in repo {event.repo.name} with title "{event.payload.issue.title}" to user "{event.payload.issue.user}" at {event.created_at}'
-            print(info)
+            elif event_type == "create":
+                info = f'Created a {event.payload.ref_type} with ref "{event.payload.ref}" in repo "{event.repo.name}" at {event.created_at}'
+            if len(info) > 0: print(info)
     
 
 
