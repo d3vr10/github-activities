@@ -45,10 +45,9 @@ def filter_events(event, from_=None, until=None):
 
         
         
-    threshold = datetime.now(timezone.utc) - timedelta({
-        time_unit_to_datetime_mapping["mode"]: unit,
-    })
-    if datetime.fromisoformat(event.created_at[:-1]) 
+    # threshold = datetime.now(timezone.utc) - timedelta({
+    #     time_unit_to_datetime_mapping["mode"]: unit,
+    # })
 
 def build_parser():
     parser = argparse.ArgumentParser(
