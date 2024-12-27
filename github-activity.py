@@ -11,7 +11,6 @@ import logging
 from datetime import datetime, timezone
 from dateutils import relativedelta
 import socket
-
 github_events_url = "https://api.github.com/users/{username}/events"
 
 def dict_to_simplenamespace(data):
@@ -29,6 +28,16 @@ time_unit_to_datetime_mapping = {
     "w": "weeks",
     "h": "hours",
 }
+def change_timezone(dt, target_timezone=None):
+    """Convert a datetime's timezone to the specified timezone or the local timezone if not specified."""
+    if target_timezone is None:
+        target_timezone = datetime.now().astimezone().tzinfo
+    else:
+        target_timezone = timezone(target_timezone)
+    
+    dt = dt.replace(tzinfo=target_timezone)
+    
+    return dt
 
 def filter_events(events, from_date=None, until_date=None):
     def get_delta(unit):
@@ -58,20 +67,18 @@ def filter_events(events, from_date=None, until_date=None):
     until_delta = get_delta(until_date)
 
     def filter_event(event):
-        created_at = datetime.fromisoformat(event.created_at)  # Ensure it is UTC-aware
+        dt_created_at = datetime.fromisoformat(event.created_at)  # Ensure it is UTC-aware
         from_datetime = datetime.now(timezone.utc) - from_delta
         until_datetime = None
         if until_delta == relativedelta(0): until_datetime = datetime.min.replace(tzinfo=timezone.utc)  # Minimum representable datetime
         else: until_datetime = from_datetime - until_delta
-        return created_at >= until_datetime and created_at <= from_datetime
+        return dt_created_at >= until_datetime and dt_created_at <= from_datetime
         
     return filter(filter_event, events)
-    
-        
 
-    # threshold = datetime.now(timezone.utc) - timedelta({
-    #     time_unit_to_datetime_mapping["mode"]: unit,
-    # })
+def alter_event_timezone(event, target_timezone=None):
+    event.created_at = change_timezone(datetime.fromisoformat(event.created_at), target_timezone)
+    return event 
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -96,6 +103,8 @@ def collect_events(carrier, from_date=None, until_date=None):
         from_date=from_date,
         until_date=until_date,
     )
+    events = map(alter_event_timezone, events)
+    
     for event in events:
         event_type = event.type.lower().replace("event", "")
         info = ""
