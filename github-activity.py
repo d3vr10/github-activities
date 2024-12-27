@@ -125,11 +125,11 @@ def main():
             info = ""
             if event_type == "push":
                 info = f'Pushed {event.payload.size} commit{"s" if event.payload.size > 1 else ""} to {event.repo.name} at {event.created_at}'
-            if event_type == "watch":
+            elif event_type == "watch":
                 info = f'Watched {event.repo.name} at {event.created_at}'    
-            if event_type == "open":
+            elif event_type == "open":
                 info = f'Opened an issue at {event.created_at}'
-            if event_type == "issuecomment":
+            elif event_type == "issuecomment":
                 info = f'Commented an issue in repo {event.repo.name} with title "{event.payload.issue.title}" to user "{event.payload.issue.user}" at {event.created_at}'
             print(info)
     
