@@ -1,7 +1,17 @@
-## Github User Activity
+# Github User Activity
 
-DOCS:
-`
+This tool displays a user's activity on Github using the official Github API. It supports fetching events from both public and private repositories, with optional time synchronization to ensure accurate event filtering.
+
+## Features
+
+- Fetches user activity from Github
+- Supports authentication for private repositories
+- Optional time synchronization with NTP server
+- Filters events based on date range
+- Outputs events in JSON format (optional)
+- Verbose output for detailed logging
+
+```
 usage: Github Activity Visualizer - CLI [-h] [--from-date FROM_DATE] [--until-date UNTIL_DATE] [-r REPO] [--auth-username AUTH_USERNAME] [-nt]
                                         [--auth-password AUTH_PASSWORD] [--auth-token AUTH_TOKEN] [--json] [--timeout TIMEOUT] [-t TRIAL_COUNT] [-v]
                                         username
@@ -27,8 +37,8 @@ options:
   -t, --trial-count TRIAL_COUNT
                         Number of attempts to make the request. If it fails more than the provided number, the program will fail. Default is "1"
   -v, --verbose         Verbose output. multiple usages (MAX: 3) increment the level of verbosity.
-`
+```
 
 
-####Roadmap.sh url: 
+#### Roadmap.sh url: 
 https://roadmap.sh/projects/github-user-activity
