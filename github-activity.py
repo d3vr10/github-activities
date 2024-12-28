@@ -17,7 +17,13 @@ import subprocess
 import time
 import os
 import ctypes
+from argparse import RawDescriptionHelpFormatter
 
+cli_description="""
+Tool to display a user's activity on Github per the Github's official API.
+
+It may potentially be helpful to introduce credentials in case you want to see events from private repos to or users' private activity that Github determines you have access to.
+"""
 gh_user_events_url = "https://api.github.com/users/{username}/events"
 gh_repo_events_url = "https://api.github.com/repos/{username}/{repo}/events"
 
@@ -173,7 +179,8 @@ def alter_event_timezone(event, target_timezone=None):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="Github Activity Visualizer - CLI",
-        description="Tool to display a user's activity on Github per the Github's official API",
+        description=cli_description,
+        formatter_class=RawDescriptionHelpFormatter,
     )
 
     parser.add_argument("username")
@@ -181,10 +188,10 @@ def build_parser():
     parser.add_argument("--until-date", action="store", default=None)
     parser.add_argument("-r", "--repo", action="store", default=None) 
     parser.add_argument("--auth-username", action="store", default=None)
-    parser.add_argument("-nt", "--no-timesync", action="store_true", default=False)
+    parser.add_argument("-nt", "--no-timesync", action="store_true", default=False, help="Disables time syncing support. WARNING: If time is not in sync recent events might be filtered out from the feed.")
     parser.add_argument("--auth-password", action="store", default=None)
     parser.add_argument("--auth-token", action="store", default=None)
-    parser.add_argument("--json", action="store_true", default=False) #To be implemented!
+    parser.add_argument("--json", action="store_true", default=False, help="Formats output to JSON") #To be implemented!
     parser.add_argument("--timeout", default=10, help="Request timeout in seconds.")
     parser.add_argument("-t", "--trial-count", default=1, help="Number of attempts to make the request. If it fails more than the provided number, the program will fail. Default is \"1\"")
     parser.add_argument("-v", "--verbose", action="count", help="Verbose output. multiple usages (MAX: 3) increment the level of verbosity.") #TODO to be implemented
