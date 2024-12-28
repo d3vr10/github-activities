@@ -11,7 +11,9 @@ import logging
 from datetime import datetime, timezone
 from dateutils import relativedelta
 import socket
-github_events_url = "https://api.github.com/users/{username}/events"
+gh_user_events_url = "https://api.github.com/users/{username}/events"
+gh_repo_events_url = "https://api.github.com/repos/{username}/{repo}/events"
+
 
 def dict_to_simplenamespace(data):
     """Recursively convert a dictionary to SimpleNamespace."""
@@ -39,7 +41,8 @@ def change_timezone(dt, target_timezone=None):
     
     return dt
 
-def filter_events(events, from_date=None, until_date=None):
+def filter_events(events, from_date: str | None = None, until_date: str | None = None):
+
     def get_delta(unit):
         if not unit:
             return relativedelta(0)
@@ -89,9 +92,14 @@ def build_parser():
     parser.add_argument("username")
     parser.add_argument("--from-date", action="store", default=None) 
     parser.add_argument("--until-date", action="store", default=None)
-    parser.add_argument("--timeout", default=10)
-    parser.add_argument("-t", "--trial-count", default=1)
-    parser.add_argument("-v", "--verbose", action="count") #TODO to be implemented
+    parser.add_argument("-r", "--repo", action="store", default=None) 
+    parser.add_argument("--auth-username", action="store", default=None, )
+    parser.add_argument("--auth-password", action="store", default=None)
+    parser.add_argument("--auth-token", action="store", default=None)
+    parser.add_argument("--json", action="store", default=None) #To be implemented!
+    parser.add_argument("--timeout", default=10, help="Request timeout in seconds.")
+    parser.add_argument("-t", "--trial-count", default=1, help="Number of attempts to make the request. If it fails more than the provided number, the program will fail. Default is \"1\"")
+    parser.add_argument("-v", "--verbose", action="count", help="Verbose output. multiple usages (MAX: 3) increment the level of verbosity.") #TODO to be implemented
     return parser
 
 def collect_events(carrier, from_date=None, until_date=None):
@@ -120,20 +128,31 @@ def collect_events(carrier, from_date=None, until_date=None):
             info = f'Created a {event.payload.ref_type} with ref "{event.payload.ref}" in repo "{event.repo.name}" at {event.created_at}'
         if len(info) > 0: print(info)
 
-def main():
-    parser = build_parser()
-    namespace = parser.parse_args()
-    attempts = namespace.trial_count
-    res = None
+def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
+    "token": None,
+    "user": None,
+    "password": None,
+}):
+    effective_url = None
+    if repo: effective_url = gh_repo_events_url.format(username=username, repo=repo)
+    else: effective_url = gh_user_events_url.format(username=username)
+
     for attempt in range(attempts):
         try: 
+            headers = {
+                "Content-Type": "application/json"
+            }
+            if auth["token"]: headers["Authorization"] = f'token {auth["token"]}'
+
+            req = http_request.Request(effective_url, headers=headers)
             res = http_request.urlopen(
-                github_events_url.format(username=namespace.username),
-                timeout=namespace.timeout,
+                req,
+                timeout=timeout,
             )
-            break
+            return res
         except urllib.error.HTTPError as err:
-            pass
+            logging.error(f"HTTP Error: {err.code}. Terminating the program!")
+            sys.exit(20)
         except urllib.error.URLError as err:
             if isinstance(err.reason, socket.timeout) and attempt + 1 == attempts:
                 logging.error(f"Request timeout. Max attempt count has been reached. {attempt + 1}/{attempts}")
@@ -147,6 +166,21 @@ def main():
         except Exception as err:
             logging.error("Something unexpected happened!")
             raise err
+
+def main():
+    parser = build_parser()
+    namespace = parser.parse_args()
+    res = fetch_github_activity(
+        namespace.username, 
+        repo=namespace.repo, 
+        timeout=namespace.timeout, 
+        attempts=namespace.trial_count,
+        auth={
+            "username": namespace.auth_username,
+            "token": namespace.auth_token,
+            "password": namespace.auth_password,
+        }
+    )
 
     if res.status == HTTPStatus.OK:
         collect_events(res, from_date=namespace.from_date, until_date=namespace.until_date)
