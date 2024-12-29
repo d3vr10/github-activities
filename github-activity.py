@@ -20,6 +20,34 @@ import ctypes
 from argparse import RawDescriptionHelpFormatter
 from tqdm import tqdm
 import io
+import colorama
+
+if __name__ == "__main__":
+    colorama.init(autoreset=True)
+
+
+class ColorFormatter(logging.Formatter):
+    """Custom logging formatter to add colors to log messages."""
+    def format(self, record):
+        log_colors = {
+            logging.DEBUG: colorama.Fore.CYAN,
+            logging.INFO: colorama.Fore.BLUE,
+            logging.WARNING: colorama.Fore.YELLOW,
+            logging.ERROR: colorama.Fore.RED,
+            logging.CRITICAL: colorama.Fore.RED + colorama.Style.BRIGHT,
+        }
+        log_color = log_colors.get(record.levelno, colorama.Fore.WHITE)
+        record.msg = log_color + record.msg + colorama.Style.RESET_ALL
+        return super().format(record)
+
+# Set up logging
+logger = logging.getLogger()
+handler = logging.StreamHandler()
+formatter = ColorFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
+
 
 cli_description="""
 Tool to display a user's activity on Github per the Github's official API.
@@ -200,7 +228,7 @@ def build_parser():
     return parser
 
 def collect_events(carrier, from_date=None, until_date=None):
-    body_text = carrier.read().decode('utf-8') or '[]'
+    body_text = carrier.read().decode('utf-8') or '[]' #For cases when HTTP response body is empty, since empty strings violate JSON rules.
     body_json = json.loads(body_text)
     events = filter_events(
         map(dict_to_simplenamespace, body_json),
@@ -222,7 +250,7 @@ def collect_events(carrier, from_date=None, until_date=None):
             info = f'Commented an issue in repo {event.repo.name} with title "{event.payload.issue.title}" to user "{event.payload.issue.user}" at {event.created_at}'
         elif event_type == "create":
             info = f'Created a {event.payload.ref_type} with ref "{event.payload.ref}" in repo "{event.repo.name}" at {event.created_at}'
-        if len(info) > 0: print(info)
+        if len(info) > 0: print(colorama.Fore.GREEN + info)
 
 def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
     "token": None,
