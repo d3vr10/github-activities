@@ -250,17 +250,16 @@ def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
                 if res.status == HTTPStatus.OK:
                     content_length = res.getheader("Content-Length")
                     chunk_size = 1024
+                    data = []
                     if content_length:
                         total_size = int(content_length.strip())
                         with tqdm(total=total_size, unit='B', unit_scale=True, desc="Downloading...") as pbar:
                             while True:
-                                # data = []
                                 chunk = res.read(chunk_size)
                                 if not chunk:
                                     break
-                                # data.append(chunk)
+                                data.append(chunk)
                                 pbar.update(len(chunk))
-                        # return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
                     
                     else:
                         # Indeterminate progress bar
@@ -269,10 +268,10 @@ def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
                                 chunk = res.read(chunk_size)
                                 if not chunk:
                                     break
-                                # data.append(chunk)
+                                data.append(chunk)
                                 pbar.update(len(chunk))
                     print()
-                    return res
+                    return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
                                 
         except urllib.error.HTTPError as err:
             logging.error(f"HTTP Error: {err.code}. Terminating the program!")
