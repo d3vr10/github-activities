@@ -37,28 +37,31 @@ def build_parser():
 
 def main():
     parser = build_parser()
-    namespace = parser.parse_args()
-    if not namespace.no_timesync and is_time_out_of_sync():
+    ns = parser.parse_args()
+    if not ns.json and ns.ugly:
+        logger.warning("--ugly flag detected and will be ignored. Did you mean to also use --json?")
+
+    if not ns.no_timesync and is_time_out_of_sync():
         sync_time_with_ntp()
     res = fetch_github_activity(
-        namespace.username, 
-        repo=namespace.repo, 
-        timeout=namespace.timeout, 
-        attempts=namespace.trial_count,
+        ns.username, 
+        repo=ns.repo, 
+        timeout=ns.timeout, 
+        attempts=ns.trial_count,
         auth={
-            "username": namespace.auth_username,
-            "token": namespace.auth_token,
-            "password": namespace.auth_password,
+            "username": ns.auth_username,
+            "token": ns.auth_token,
+            "password": ns.auth_password,
         }
     )
 
     if res.status == HTTPStatus.OK:
         collect_events(
             res, 
-            from_date=namespace.from_date, 
-            until_date=namespace.until_date, 
-            verbose=namespace.verbose, 
-            pretty=not namespace.ugly,
+            from_date=ns.from_date, 
+            until_date=ns.until_date, 
+            verbose=ns.verbose, 
+            pretty=not ns.ugly,
         )
 
 
