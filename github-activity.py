@@ -261,7 +261,7 @@ def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
                                 data.append(chunk)
                                 pbar.update(len(chunk))
                         print()
-                        return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
+                        # return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
                 return res
                                 
         except urllib.error.HTTPError as err:
