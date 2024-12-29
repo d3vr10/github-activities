@@ -31,16 +31,24 @@ def collect_events(carrier, from_date=None, until_date=None, verbose=0, toJSON=F
                 info = f'Created a {event.payload.ref_type} with ref "{event.payload.ref}" in repo "{event.repo.name}" at {event.created_at}'
             if len(info) > 0: print(colorama.Fore.GREEN + info)
             else: print("No activity is available currently")
-    elif verbose == 2:
+    elif verbose < 2 and toJSON:
         json_string = jsonpickle.encode(
-            events, indent=2 if pretty else 0, 
+            events, 
+            indent=2 if pretty else None, 
             unpicklable=False,
         )
-        # print(json_string)
+        print()
+        sys.stdout.write(json_string)
+        sys.stdout.flush()
+
+    else:
+        json_string = jsonpickle.encode(
+            events, 
+            indent=2 if pretty else None, 
+            unpicklable=False,
+        )
 
         print() #For formatting purposes
         sys.stdout.write(json_string)
         sys.stdout.flush()
         
-    else:
-        pass
