@@ -18,6 +18,8 @@ import time
 import os
 import ctypes
 from argparse import RawDescriptionHelpFormatter
+from tqdm import tqdm
+import io
 
 cli_description="""
 Tool to display a user's activity on Github per the Github's official API.
@@ -237,14 +239,31 @@ def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
             headers = {
                 "Content-Type": "application/json"
             }
-            if auth["token"]: headers["Authorization"] = f'token {auth["token"]}'
+            if auth:
+                if auth.get("token"):
+                    headers["Authorization"] = f'token {auth["token"]}'
 
             req = http_request.Request(effective_url, headers=headers)
-            res = http_request.urlopen(
+            with http_request.urlopen(
                 req,
                 timeout=timeout,
-            )
-            return res
+            ) as res:
+                # data = []
+                if res.status == HTTPStatus.OK:
+                    content_length = res.getheader("Content-Length")
+                    if content_length:
+                        total_size = int(content_length.strip())
+                        chunk_size = 1024
+                        with tqdm(total=total_size, unit='B', unit_scale=True, desc="Downloading...") as pbar:
+                            while True:
+                                chunk = res.read(chunk_size)
+                                if not chunk:
+                                    break
+                                # data.append(chunk)
+                                pbar.update(len(chunk))
+                        # return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
+                return res
+                                
         except urllib.error.HTTPError as err:
             logging.error(f"HTTP Error: {err.code}. Terminating the program!")
             sys.exit(20)
