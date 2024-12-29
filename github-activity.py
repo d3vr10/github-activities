@@ -200,14 +200,13 @@ def build_parser():
     return parser
 
 def collect_events(carrier, from_date=None, until_date=None):
-    body_json = json.loads(
-        carrier.read().decode('utf-8')
-    )
+    body_text = carrier.read().decode('utf-8') or '[]'
+    body_json = json.loads(body_text)
     events = filter_events(
         map(dict_to_simplenamespace, body_json),
         from_date=from_date,
         until_date=until_date,
-    )
+    ) 
     events = map(alter_event_timezone, events)
     
     for event in events:
@@ -248,7 +247,6 @@ def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
                 req,
                 timeout=timeout,
             ) as res:
-                # data = []
                 if res.status == HTTPStatus.OK:
                     content_length = res.getheader("Content-Length")
                     if content_length:
@@ -256,12 +254,14 @@ def fetch_github_activity(username, repo=None, timeout=10, attempts=1, auth={
                         chunk_size = 1024
                         with tqdm(total=total_size, unit='B', unit_scale=True, desc="Downloading...") as pbar:
                             while True:
+                                data = []
                                 chunk = res.read(chunk_size)
                                 if not chunk:
                                     break
-                                # data.append(chunk)
+                                data.append(chunk)
                                 pbar.update(len(chunk))
-                        # return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
+                        print()
+                        return http_response.addinfourl(io.BytesIO(b''.join(data)), res.headers, effective_url, res.status)
                 return res
                                 
         except urllib.error.HTTPError as err:
