@@ -23,7 +23,7 @@ import io
 import colorama
 
 if __name__ == "__main__":
-    colorama.init(autoreset=True)
+    colorama.just_fix_windows_console()
 
 
 class ColorFormatter(logging.Formatter):
